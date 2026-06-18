@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Raspodela poziva</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cg%20fill='%23b3cea9'%20stroke='%232c544a'%20stroke-width='1.8'%20stroke-linejoin='round'%20stroke-linecap='round'%3E%3Crect%20x='8.5'%20y='15'%20width='15'%20height='12'%20rx='3'/%3E%3Ccircle%20cx='16'%20cy='21'%20r='3.2'/%3E%3Ccircle%20cx='16'%20cy='21'%20r='0.9'%20fill='%232c544a'%20stroke='none'/%3E%3Cpath%20d='M6%2010%20Q16%205%2026%2010'%20fill='none'/%3E%3Ccircle%20cx='6'%20cy='10'%20r='2.5'/%3E%3Ccircle%20cx='26'%20cy='10'%20r='2.5'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -305,13 +306,22 @@ let history = loadHistory();
 function loadHistory(){ try{ const s=localStorage.getItem('raspodela_history_v1'); if(s) return JSON.parse(s); }catch(e){} return []; }
 function saveHistory(){ try{ localStorage.setItem('raspodela_history_v1', JSON.stringify(history)); }catch(e){} pushToServer(); }
 
+// readable snapshot of current distribution for the Sheet
+function buildSummary(){
+  const r=compute();
+  return state.people.map((p,i)=>{
+    const og = state.priority[p.listIdx] ? state.priority[p.listIdx].name : '';
+    const det = p.active ? r.breakdown[i].map(s=>s.label+' '+s.count).join(', ') : 'pauza';
+    return { name:p.name, grad:og, active:p.active, total: p.active ? r.totals[i] : 0, detalji: det };
+  });
+}
 // push current state + history to the shared base (debounced, no-cors so the write always goes through)
 let _pushTimer=null;
 function pushToServer(){
   if(!API) return;
   clearTimeout(_pushTimer);
   _pushTimer=setTimeout(()=>{
-    try{ fetch(API,{method:'POST', mode:'no-cors', body:JSON.stringify({state:state, history:history})}); }catch(e){}
+    try{ fetch(API,{method:'POST', mode:'no-cors', body:JSON.stringify({state:state, history:history, summary:buildSummary()})}); }catch(e){}
   }, 600);
 }
 // pull latest from the shared base on open (JSONP — avoids CORS entirely)
