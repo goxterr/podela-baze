@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raspodela poziva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a1d23; --muted:#6b7280; --line:#e6e8ec; --bg:#d2d8e1; --card:#ffffff;
+    --coral:#ef4444;
+    --radius:14px; --shadow:0 1px 2px rgba(16,24,40,.04),0 6px 20px rgba(16,24,40,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:radial-gradient(125% 95% at 50% 6%, #acc3a4 0%, #88ab97 48%, #6a9389 100%); background-attachment:fixed; -webkit-font-smoothing:antialiased; line-height:1.45; position:relative}
+  /* Viber-style color wash + faint house outlines */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:
+      radial-gradient(58% 42% at 50% 2%, rgba(255,255,255,.16), transparent 72%),
+      radial-gradient(72% 60% at 50% 122%, rgba(34,72,64,.16), transparent 70%),
+      url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='76'%20height='76'%20viewBox='0%200%2076%2076'%3E%3Cg%20fill='none'%20stroke='%232f5a4f'%20stroke-opacity='0.10'%20stroke-width='1.5'%20stroke-linejoin='round'%20stroke-linecap='round'%3E%3Cpath%20d='M21%2040%20L38%2026%20L55%2040'/%3E%3Cpath%20d='M25%2040%20V57%20H51%20V40'/%3E%3Cpath%20d='M34%2057%20V47%20H42%20V57'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:no-repeat,no-repeat,repeat;
+    background-size:auto,auto,76px 76px;
+  }
+  .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1}
+  .lockscreen{position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; background:radial-gradient(125% 95% at 50% 6%, #acc3a4 0%, #88ab97 48%, #6a9389 100%)}
+  .lockbox{background:#fff; border-radius:16px; padding:30px 28px; width:300px; max-width:88vw; box-shadow:0 16px 48px rgba(0,0,0,.20); text-align:center}
+  .lockh{font-family:'Archivo',sans-serif; font-weight:800; font-size:22px; letter-spacing:-.01em}
+  .lockp{color:var(--muted); font-size:13px; margin:4px 0 16px}
+  #pin{width:100%; font:inherit; font-size:15px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; text-align:center; margin-bottom:10px}
+  #pin:focus{outline:none; border-color:#6a9389}
+  #pinbtn{width:100%; font:inherit; font-weight:700; font-size:15px; color:#fff; background:#3f6964; border:none; padding:11px; border-radius:10px; cursor:pointer}
+  #pinbtn:hover{background:#345853}
+  .pinerr{color:#dc2626; font-size:12.5px; margin-top:10px; min-height:16px}
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 64px; position:relative}
+
+  header.top{display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:22px}
+  .title h1{font-family:'Archivo',sans-serif; font-weight:800; font-size:33px; letter-spacing:-.02em; margin:0}
+  .title p{margin:4px 0 0; color:var(--muted); font-size:14px}
+  .actions{display:flex; gap:8px}
+  .btn{font:inherit; font-weight:600; font-size:13px; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:9px 14px; border-radius:10px; cursor:pointer; transition:.15s}
+  .btn:hover{border-color:#c9cdd4; background:#fafafa}
+  .btn.primary{border-color:#fbcaca; color:#b91c1c; background:#fff5f5}
+  .btn.primary:hover{background:#fee2e2; border-color:#f7a8a8}
+
+  .strip{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow)}
+  .stat .k{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600}
+  .stat .v{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:26px; margin-top:4px}
+
+  .grid{display:grid; grid-template-columns:404px 1fr; gap:24px; align-items:start}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden}
+  .panel + .panel{margin-top:18px}
+  .panel h2{font-family:'Space Grotesk',sans-serif; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin:0; padding:16px 18px 12px}
+  .panel .body{padding:0 18px 18px}
+
+  .prow{display:flex; align-items:center; gap:10px; padding:11px 0; border-top:1px solid var(--line)}
+  .prow:first-child{border-top:none}
+  .dot{width:11px; height:11px; border-radius:50%; flex:none}
+  .name-in{font:inherit; font-weight:600; font-size:15px; border:none; background:transparent; color:var(--ink); padding:4px 6px; border-radius:7px; width:100%; min-width:0}
+  .name-in:hover{background:#f2f3f5} .name-in:focus{outline:2px solid #94a3b8; outline-offset:0; background:#fff}
+  select.city{font:inherit; font-size:12.5px; font-weight:600; color:#475569; border:1px solid var(--line); background:#fff; padding:6px 7px; border-radius:8px; cursor:pointer; max-width:118px; flex:none}
+  select.city:focus{outline:none; border-color:#94a3b8}
+  .switch{position:relative; width:42px; height:24px; flex:none; cursor:pointer}
+  .switch input{opacity:0; width:0; height:0; position:absolute}
+  .track{position:absolute; inset:0; background:#d6d9de; border-radius:99px; transition:.18s}
+  .track::after{content:""; position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:.18s; box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch input:checked + .track{background:#22c55e}
+  .switch input:checked + .track::after{transform:translateX(18px)}
+
+  .lrow{display:grid; grid-template-columns:1fr auto; gap:8px 10px; padding:11px 0; border-top:1px solid var(--line); align-items:center}
+  .lrow:first-child{border-top:none}
+  .lrow .ln{font:inherit; font-weight:500; font-size:14px; border:1px solid transparent; background:#f7f8fa; padding:7px 9px; border-radius:8px; width:100%; min-width:0}
+  .lrow .ln:focus{outline:none; border-color:#94a3b8; background:#fff}
+  .lname{font-size:14px; font-weight:600; color:var(--ink); padding:7px 2px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .lrow .ctrls{display:flex; gap:9px; align-items:center}
+  .ownerdot{width:13px; height:13px; border-radius:50%; flex:none; box-shadow:0 0 0 3px #fff, 0 0 0 4px var(--line)}
+  .owneroff{font-size:11px; font-weight:700; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; padding:4px 7px; border-radius:7px; white-space:nowrap}
+  input.cnt{font:inherit; font-weight:700; font-size:15px; width:74px; text-align:right; border:1px solid var(--line); background:#fff; padding:7px 9px; border-radius:8px}
+  input.cnt:focus{outline:none; border-color:#94a3b8}
+  .lrow.sub{grid-template-columns:1fr 74px}
+  .hint{font-size:12px; color:var(--muted); padding:6px 0 0; line-height:1.45}
+
+  .subgroup{border-top:1px solid var(--line); padding-top:4px}
+  .subgroup:first-child{border-top:none}
+  .sgh{font-size:12px; font-weight:700; color:var(--ink); padding:10px 0 2px}
+  .lrow.sub2{grid-template-columns:1fr 74px; padding:8px 0 8px 14px; border-top:1px dashed #eef0f3}
+  .lrow.sub2:first-of-type{border-top:none}
+  .sublabel{font-size:14px; font-weight:500; color:#374151}
+  .lrow.sub2 .sublabel::before{content:"•"; color:#c2c7cf; margin-right:8px}
+  .extrarow{display:grid; grid-template-columns:1fr 74px 30px; gap:8px; align-items:center; padding:9px 0; border-top:1px dashed #eef0f3}
+  .extrarow .ln{font:inherit; font-size:14px; border:1px solid var(--line); background:#fff; padding:7px 9px; border-radius:8px; width:100%}
+  .xbtn{border:none; background:#f3f4f6; color:#9aa0aa; width:28px; height:28px; border-radius:7px; cursor:pointer; font-size:16px; line-height:1}
+  .xbtn:hover{background:#fee2e2; color:#dc2626}
+  .addbtn{margin-top:12px; font:inherit; font-weight:600; font-size:13px; color:#475569; background:#fff; border:1px dashed #cbd2da; padding:9px 12px; border-radius:9px; cursor:pointer; width:100%}
+  .addbtn:hover{border-color:#94a3b8; background:#fafbfc}
+
+  .res-head{display:flex; align-items:baseline; justify-content:space-between; padding:18px 20px 8px; gap:12px; flex-wrap:wrap}
+  .res-head h2{font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; margin:0; text-transform:none; letter-spacing:-.01em; color:var(--ink); padding:0}
+  .legend{display:flex; gap:14px; font-size:12px; color:var(--muted); flex-wrap:wrap}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .sw{width:13px; height:13px; border-radius:3px; display:inline-block}
+  .sw.own{background:#9aa0aa}
+  .sw.pool{background:#9aa0aa; background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.55) 0 3px,transparent 3px 6px)}
+
+  .chart{padding:8px 20px 4px; position:relative}
+  .bars{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; align-items:end; height:200px; position:relative}
+  .targetline{position:absolute; left:0; right:0; border-top:2px dashed #b6bcc6; z-index:2; pointer-events:none; display:none}
+  .targetlab{position:absolute; right:0; transform:translateY(-50%); background:#fff; padding:0 6px; font-size:11px; font-weight:600; color:#7a818d; z-index:3}
+  .bar-col{display:flex; align-items:flex-end; justify-content:center; height:100%}
+  .bar{width:100%; max-width:88px; border-radius:8px 8px 4px 4px; overflow:hidden; display:flex; flex-direction:column-reverse; transition:height .35s cubic-bezier(.4,0,.2,1)}
+  .seg{transition:height .35s cubic-bezier(.4,0,.2,1)}
+  .seg.pool{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 4px,transparent 4px 8px)}
+  .foots{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:10px}
+  .foot{text-align:center}
+  .bar-total{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px; line-height:1.1}
+  .bar-total.off{color:#aeb4be; font-size:16px}
+  .bar-name{font-size:12px; font-weight:600; color:var(--muted); margin-top:2px}
+
+  .histpanel{margin-top:18px}
+  .histbar{display:flex; align-items:center; justify-content:space-between; padding:18px 20px 4px; gap:12px; flex-wrap:wrap}
+  .histbar h2{font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; margin:0; letter-spacing:-.01em}
+  .htable-wrap{padding:8px 20px 22px; overflow-x:auto}
+  table.htable{width:100%; border-collapse:collapse; font-size:13.5px}
+  table.htable th,table.htable td{padding:9px 10px; text-align:right; white-space:nowrap}
+  table.htable th:first-child,table.htable td:first-child{text-align:left}
+  table.htable thead th{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-bottom:1px solid var(--line); font-weight:700}
+  table.htable tbody td{border-bottom:1px solid #f0f2f5; font-variant-numeric:tabular-nums}
+  table.htable .hname{display:inline-flex; align-items:center; gap:6px}
+  table.htable .hdot{width:9px; height:9px; border-radius:50%; display:inline-block}
+  table.htable td.hpaus{color:#b9bfc8}
+  .hdel{border:none; background:#f3f4f6; color:#9aa0aa; width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:14px; line-height:1}
+  .hdel:hover{background:#fee2e2; color:#dc2626}
+  .hempty{color:var(--muted); font-size:13px; padding:6px 0}
+  tr.hgroup td{cursor:pointer; font-weight:700; color:var(--ink); background:#f5f7fa; border-bottom:1px solid var(--line); text-align:left; user-select:none}
+  tr.hgroup:hover td{background:#eef1f6}
+  .hchev{display:inline-block; width:14px; color:#94a3b8; font-size:11px}
+  .hcount{font-weight:600; font-size:11.5px; color:var(--muted); margin-left:8px}
+
+  .cards{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; padding:18px 20px 22px}
+  .pcard{border:1px solid var(--line); border-radius:12px; padding:14px 15px; border-left-width:4px; transition:box-shadow .2s;
+    background:#fff url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='60'%20height='60'%20viewBox='0%200%2076%2076'%3E%3Cg%20fill='none'%20stroke='%23334155'%20stroke-opacity='0.055'%20stroke-width='1.5'%20stroke-linejoin='round'%20stroke-linecap='round'%3E%3Cpath%20d='M21%2040%20L38%2026%20L55%2040'/%3E%3Cpath%20d='M25%2040%20V57%20H51%20V40'/%3E%3Cpath%20d='M34%2057%20V47%20H42%20V57'/%3E%3C/g%3E%3C/svg%3E");
+    background-size:60px 60px; box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.06)}
+  .pcard.off{opacity:.62; background:#fafbfc; box-shadow:none!important}
+  .pcard .ch{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px}
+  .pcard .cn{font-weight:700; font-size:15px}
+  .pcard .ct{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px}
+  .pcard .ct small{font-size:12px; color:var(--muted); font-weight:600; font-family:'Inter'}
+  .brk{display:flex; flex-direction:column; gap:5px}
+  .brk .bi{display:flex; align-items:center; justify-content:space-between; font-size:13px; gap:8px}
+  .brk .bl{display:flex; align-items:center; gap:7px; color:#374151; min-width:0}
+  .brk .bl .tx{font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:1px 6px; border-radius:4px; white-space:nowrap}
+  .t-own{background:#dcfce7; color:#15803d}
+  .t-orphan{background:#fee2e2; color:#b91c1c}
+  .t-s0{background:#e0e7ff; color:#4338ca}
+  .t-s1{background:#ede9fe; color:#6d28d9}
+  .t-s2{background:#cffafe; color:#0e7490}
+  .t-extra{background:#f1f5f9; color:#475569}
+  .brk .bv{font-weight:700; font-variant-numeric:tabular-nums}
+  .off-note{font-size:13px; color:var(--muted); font-style:italic}
+
+  .footer-note{margin-top:20px; font-size:12.5px; color:var(--muted); line-height:1.55; max-width:820px}
+  .footer-note b{color:#4b5563}
+
+  @media (max-width:920px){
+    .grid{grid-template-columns:1fr}
+    .strip{grid-template-columns:repeat(2,1fr)}
+    .cards{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div id="lock" class="lockscreen">
+  <div class="lockbox">
+    <div class="lockh">Raspodela poziva</div>
+    <p class="lockp">Unesi lozinku za pristup.</p>
+    <input id="pin" type="password" placeholder="Lozinka" autocomplete="current-password">
+    <button id="pinbtn">Uđi</button>
+    <div id="pinerr" class="pinerr"></div>
+  </div>
+</div>
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <h1>Raspodela poziva</h1>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="reset">RESET</button>
+    </div>
+  </header>
+
+  <div class="strip">
+    <div class="stat"><div class="k">Ukupno poziva</div><div class="v num" id="s-total">0</div></div>
+    <div class="stat"><div class="k">Na poslu</div><div class="v num" id="s-active">0 / 4</div></div>
+    <div class="stat"><div class="k">Prosek po osobi</div><div class="v num" id="s-avg">0</div></div>
+    <div class="stat"><div class="k">Za nivelaciju</div><div class="v num" id="s-pool">0</div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>Ekipa</h2>
+        <div class="body" id="people"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Prioritetne liste (po gradovima)</h2>
+        <div class="body">
+          <div id="priority"></div>
+          <p class="hint">Svako zove svoju listu sam. Vlasnika menjaš u sekciji „Ekipa". Kad nekoga isključiš, njegova lista se prva preraspodeli na ostale.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Sekundarne liste (za nivelaciju)</h2>
+        <div class="body">
+          <div id="secondary"></div>
+          <div id="extra"></div>
+          <button class="addbtn" id="addlist">+ Dodaj listu</button>
+          <p class="hint">Njima se dopunjuju oni koji imaju manje poziva. Svako kome fali dobija bar 1 iz svake kategorije, ravnomerno.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="res-head">
+        <h2>Ko koliko zove</h2>
+        <div class="legend">
+          <span><i class="sw own"></i> svoja lista</span>
+          <span><i class="sw pool"></i> preuzeto + nivelacija</span>
+        </div>
+      </div>
+      <div class="chart">
+        <div class="bars" id="bars">
+          <div class="targetline" id="tline"><span class="targetlab" id="tlab"></span></div>
+        </div>
+        <div class="foots" id="foots"></div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </div>
+  </div>
+
+  <div class="panel histpanel">
+    <div class="histbar">
+      <h2>Istorijat po danima</h2>
+      <div class="histbtns">
+        <button class="btn primary" id="saveday">Sačuvaj današnju raspodelu</button>
+      </div>
+    </div>
+    <div class="htable-wrap" id="history"></div>
+  </div>
+
+  <p class="footer-note">
+    <b>Kako se računa:</b> svako prvo zove svoju listu.
+    Manjak se najpre pokriva listama odsutnih (baza) — slivaju se ka onima koji najviše zaostaju (kod velike razlike i mala lista ide praktično 100% najzaostalijem).
+    Sekundarne liste se onda dele ravnomernije: i oni koji već imaju najviše dobijaju bar ~2%, a ostatak ide onima koji zaostaju, ravnomerno po kategorijama (bar 1 iz svake gde ima dovoljno).
+    Isprekidana linija je prosek po osobi. Brojevi se zaokružuju tako da zbir uvek štima.
+  </p>
+</div>
+
+<script>
+const PHEX = ['#16a34a','#eab308','#db2777','#2563eb']; // Goran, Jelena, Majda, Davor
+
+const DEFAULT = {
+  // listIdx: which priority list (city) this person owns by default
+  people:[
+    {name:'Goran',  active:true, listIdx:1}, // Novi Sad
+    {name:'Jelena', active:true, listIdx:2}, // Niš / SU / KG
+    {name:'Majda',  active:true, listIdx:3}, // Ostatak
+    {name:'Davor',  active:true, listIdx:0}, // Beograd
+  ],
+  priority:[
+    {name:'Beograd',      count:0},
+    {name:'Novi Sad',     count:0},
+    {name:'Niš / SU / KG',count:0},
+    {name:'Ostatak',      count:0},
+  ],
+  secondary:[
+    {id:'s_draft', group:'Draft', label:'Draft',       count:0},
+    {id:'s_bz',    group:'Draft', label:'Bez zahteva', count:0},
+    {id:'s_napr',  group:null,    label:'Napravljeni zahtevi', count:0},
+  ],
+  extra:[]
+};
+
+let state = load();
+function load(){
+  try{ const s=localStorage.getItem('raspodela_v4'); if(s) return JSON.parse(s); }catch(e){}
+  return clone(DEFAULT);
+}
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function save(){ try{ localStorage.setItem('raspodela_v4', JSON.stringify(state)); }catch(e){} }
+function ownerOf(j){ return state.people.findIndex(p=>p.listIdx===j); }
+
+let history = loadHistory();
+function loadHistory(){ try{ const s=localStorage.getItem('raspodela_history_v1'); if(s) return JSON.parse(s); }catch(e){} return []; }
+function saveHistory(){ try{ localStorage.setItem('raspodela_history_v1', JSON.stringify(history)); }catch(e){} }
+const MONTHS=['JANUAR','FEBRUAR','MART','APRIL','MAJ','JUN','JUL','AVGUST','SEPTEMBAR','OKTOBAR','NOVEMBAR','DECEMBAR'];
+const expandedMonths = new Set();
+
+/* ---------- engine ---------- */
+function largestRemainder(raw, target){
+  const fl = raw.map(x=>Math.floor(x));
+  let rem = target - fl.reduce((a,b)=>a+b,0);
+  const order = raw.map((x,i)=>({i,f:x-Math.floor(x)})).sort((a,b)=>b.f-a.f);
+  const out = fl.slice();
+  for(let k=0; k<rem && order.length; k++) out[order[k%order.length].i]++;
+  return out;
+}
+
+function compute(){
+  const n = state.people.length;
+  const active = state.people.map(p=>p.active);
+  const base = Array(n).fill(0);
+  const own  = Array.from({length:n},()=>[]);
+  const orphan = [];
+
+  state.priority.forEach((L,j)=>{
+    const o = ownerOf(j);
+    if(o>=0 && active[o]){ base[o]+=L.count; if(L.count>0) own[o].push({label:L.name,count:L.count,kind:'own'}); }
+    else if(L.count>0) orphan.push({label:L.name,count:L.count});
+  });
+
+  const cats = [];
+  const PRIO = {s_bz:1, s_napr:2, extra:3, s_draft:4}; // Bez zahteva first (poželjnije), Draft last
+  state.secondary.forEach(s=>{ if(s.count>0) cats.push({label:s.label,count:s.count,kind:s.id, prio:PRIO[s.id]||3}); });
+  state.extra.forEach((e,i)=>{ if((e.count|0)>0) cats.push({label:e.name||('Dodatna '+(i+1)),count:e.count|0,kind:'extra', prio:3}); });
+  cats.sort((a,b)=> a.prio-b.prio);
+
+  const orphanTotal = orphan.reduce((a,b)=>a+b.count,0);
+  const secTotal = cats.reduce((a,b)=>a+b.count,0);
+  const pool = orphanTotal + secTotal;
+  const activeIdx = []; active.forEach((a,i)=>{ if(a) activeIdx.push(i); });
+
+  const breakdown = own.map(a=>a.slice());
+
+  // water level so that sum_{i in idx} max(0, L - val[i]) = amount
+  function waterLevel(val, idx, amount){
+    if(!idx.length) return 0;
+    if(amount<=0) return Math.min(...idx.map(i=>val[i]));
+    let lo=Math.min(...idx.map(i=>val[i])), hi=Math.max(...idx.map(i=>val[i]))+amount;
+    for(let it=0; it<100; it++){
+      const mid=(lo+hi)/2; let s=0;
+      idx.forEach(i=> s+=Math.max(0,mid-val[i]));
+      if(s>amount) hi=mid; else lo=mid;
+    }
+    return (lo+hi)/2;
+  }
+
+  // PHASE 1 — priority lists of absent people cover the gap, neediest first.
+  // (big gap + small list => ~100% goes to the most-behind; large list => levels several)
+  const cur = base.slice();
+  const L1 = waterLevel(base, activeIdx, orphanTotal);
+  const oNeed = Array(n).fill(0);
+  activeIdx.forEach(i=> oNeed[i]=Math.max(0, L1-base[i]));
+  const oSum = activeIdx.reduce((a,i)=>a+oNeed[i],0);
+  orphan.forEach(b=>{
+    if(b.count<=0) return;
+    const raw = activeIdx.map(i=> oSum>0 ? b.count*oNeed[i]/oSum : b.count/activeIdx.length);
+    const al = largestRemainder(raw, b.count);
+    activeIdx.forEach((i,k)=>{ if(al[k]>0){ breakdown[i].push({label:b.label,count:al[k],kind:'orphan'}); cur[i]+=al[k]; } });
+  });
+
+  // PHASE 2 — secondary target per person = small even floor for EVERYONE (incl. the busiest) + catch-up for those still behind
+  const secTarget = Array(n).fill(0);
+  if(activeIdx.length && secTotal>0){
+    let floorMin = Math.max(1, Math.round(0.02*secTotal));
+    floorMin = Math.min(floorMin, Math.floor(secTotal/activeIdx.length)); // keep floors affordable
+    if(floorMin<0) floorMin=0;
+    const rest = secTotal - floorMin*activeIdx.length;
+    const L2 = waterLevel(cur, activeIdx, rest);
+    const raw = activeIdx.map(i=> floorMin + Math.max(0, L2-cur[i]));
+    const al = largestRemainder(raw, secTotal);
+    activeIdx.forEach((i,k)=> secTarget[i]=al[k]);
+  }
+
+  // distribute categories to match secTarget — preferred lists (Bez zahteva) spread evenly first, Draft used last
+  const rem = secTarget.slice();
+  const catAlloc = cats.map(()=>Array(n).fill(0));
+  cats.forEach((c,ci)=>{
+    let cap=c.count, guard=0;
+    while(cap>0 && guard++<200000){
+      const needy = activeIdx.filter(i=>rem[i]>0).sort((a,b)=> rem[b]-rem[a]); // even pass, most-behind first
+      if(!needy.length) break;
+      for(const i of needy){ if(cap<=0) break; catAlloc[ci][i]++; rem[i]--; cap--; }
+    }
+  });
+  cats.forEach((c,ci)=>{
+    activeIdx.forEach(i=>{ if(catAlloc[ci][i]>0) breakdown[i].push({label:c.label,count:catAlloc[ci][i],kind:c.kind}); });
+  });
+
+  const totals = breakdown.map(a=>a.reduce((s,b)=>s+b.count,0));
+  const grand = totals.reduce((a,b)=>a+b,0);
+  const level = activeIdx.length ? grand/activeIdx.length : 0;
+  return {base,own,orphan,cats,orphanTotal,secTotal,pool,activeIdx,level,breakdown,totals,grand};
+}
+
+/* ---------- render inputs ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
+
+function renderPeople(){
+  const el=document.getElementById('people'); el.innerHTML='';
+  state.people.forEach((p,i)=>{
+    const opts=state.priority.map((L,j)=>`<option value="${j}" ${j===p.listIdx?'selected':''}>${esc(L.name)}</option>`).join('');
+    const row=document.createElement('div'); row.className='prow';
+    row.innerHTML=`
+      <span class="dot" style="background:${PHEX[i]}"></span>
+      <input class="name-in" value="${esc(p.name)}" data-i="${i}" data-f="pname">
+      <select class="city" data-i="${i}" data-f="plist" title="Defaultni grad">${opts}</select>
+      <label class="switch"><input type="checkbox" ${p.active?'checked':''} data-i="${i}" data-f="active"><span class="track"></span></label>`;
+    el.appendChild(row);
+  });
+}
+function renderPriority(){
+  const el=document.getElementById('priority'); el.innerHTML='';
+  state.priority.forEach((L,j)=>{
+    const o=ownerOf(j);
+    const owner=o>=0?state.people[o]:null;
+    let ind='';
+    if(owner && !owner.active) ind=`<span class="owneroff">preraspodeljeno</span>`;
+    else if(owner) ind=`<span class="ownerdot" style="background:${PHEX[o]}" title="${esc(owner.name)}"></span>`;
+    const row=document.createElement('div'); row.className='lrow';
+    row.innerHTML=`
+      <span class="lname">${esc(L.name)}</span>
+      <div class="ctrls">${ind}
+        <input class="cnt num" type="number" min="0" value="${L.count}" data-i="${j}" data-f="prcount"></div>`;
+    el.appendChild(row);
+  });
+}
+function renderSecondary(){
+  const el=document.getElementById('secondary'); el.innerHTML='';
+  const draft=state.secondary.filter(s=>s.group==='Draft');
+  const solo =state.secondary.filter(s=>!s.group);
+  if(draft.length){
+    const g=document.createElement('div'); g.className='subgroup';
+    g.innerHTML=`<div class="sgh">Draft</div>`+draft.map(s=>{
+      const i=state.secondary.indexOf(s);
+      return `<div class="lrow sub2"><span class="sublabel">${esc(s.label)}</span>
+        <input class="cnt num" type="number" min="0" value="${s.count}" data-i="${i}" data-f="sccount"></div>`;
+    }).join('');
+    el.appendChild(g);
+  }
+  solo.forEach(s=>{
+    const i=state.secondary.indexOf(s);
+    const r=document.createElement('div'); r.className='lrow sub';
+    r.innerHTML=`<span class="sublabel" style="font-weight:600">${esc(s.label)}</span>
+      <input class="cnt num" type="number" min="0" value="${s.count}" data-i="${i}" data-f="sccount">`;
+    el.appendChild(r);
+  });
+  const ex=document.getElementById('extra'); ex.innerHTML='';
+  state.extra.forEach((e,i)=>{
+    const r=document.createElement('div'); r.className='extrarow';
+    r.innerHTML=`<input class="ln" placeholder="Naziv liste" value="${esc(e.name||'')}" data-i="${i}" data-f="exname">
+      <input class="cnt num" type="number" min="0" value="${e.count|0}" data-i="${i}" data-f="excount">
+      <button class="xbtn" data-i="${i}" data-f="exdel" title="Obriši">×</button>`;
+    ex.appendChild(r);
+  });
+}
+
+/* ---------- render results ---------- */
+function tagMeta(kind){
+  switch(kind){
+    case 'own':    return ['svoja','t-own'];
+    case 'orphan': return ['preuzeto','t-orphan'];
+    case 's_draft':return ['draft','t-s0'];
+    case 's_bz':   return ['bez zaht.','t-s1'];
+    case 's_napr': return ['zahtevi','t-s2'];
+    default:       return ['dodatno','t-extra'];
+  }
+}
+function renderResults(){
+  const r=compute();
+  document.getElementById('s-total').textContent=r.grand;
+  document.getElementById('s-active').textContent=r.activeIdx.length+' / '+state.people.length;
+  document.getElementById('s-pool').textContent=r.pool;
+  document.getElementById('s-avg').textContent=r.activeIdx.length?Math.round(r.grand/r.activeIdx.length):0;
+
+  const maxT=Math.max(...r.totals,1);
+  const bars=document.getElementById('bars');
+  bars.querySelectorAll('.bar-col').forEach(n=>n.remove());
+  const foots=document.getElementById('foots'); foots.innerHTML='';
+  state.people.forEach((p,i)=>{
+    const col=document.createElement('div'); col.className='bar-col';
+    if(p.active){
+      const ownSum=r.breakdown[i].filter(s=>s.kind==='own').reduce((a,b)=>a+b.count,0);
+      const poolSum=r.totals[i]-ownSum;
+      const h=(r.totals[i]/maxT)*100;
+      col.innerHTML=`<div class="bar" style="height:${h}%">
+          <div class="seg" style="height:${r.totals[i]?ownSum/r.totals[i]*100:0}%;background:${PHEX[i]}"></div>
+          <div class="seg pool" style="height:${r.totals[i]?poolSum/r.totals[i]*100:0}%;background:${PHEX[i]}"></div>
+        </div>`;
+    } else {
+      col.innerHTML=`<div class="bar" style="height:3px;background:#e6e8ec"></div>`;
+    }
+    bars.appendChild(col);
+    const f=document.createElement('div'); f.className='foot';
+    f.innerHTML=`<div class="bar-total num${p.active?'':' off'}">${p.active?r.totals[i]:'—'}</div><div class="bar-name">${esc(p.name)}</div>`;
+    foots.appendChild(f);
+  });
+
+  const tline=document.getElementById('tline'), tlab=document.getElementById('tlab');
+  if(r.level>0 && r.pool>0){
+    const frac=Math.min(r.level/maxT,1);
+    tline.style.display='block';
+    tline.style.bottom=(frac*100)+'%';
+    tlab.textContent='prosek '+Math.round(r.level);
+  } else tline.style.display='none';
+
+  const cards=document.getElementById('cards'); cards.innerHTML='';
+  state.people.forEach((p,i)=>{
+    const c=document.createElement('div'); c.className='pcard'+(p.active?'':' off');
+    c.style.borderLeftColor=PHEX[i];
+    if(p.active){
+      const items=r.breakdown[i].map(s=>{
+        return `<div class="bi"><span class="bl">${esc(s.label)}</span><span class="bv num">${s.count}</span></div>`;
+      }).join('') || '<div class="off-note">nema poziva</div>';
+      c.innerHTML=`<div class="ch"><span class="cn">${esc(p.name)}</span><span class="ct num">${r.totals[i]} <small>poziva</small></span></div><div class="brk">${items}</div>`;
+    } else {
+      c.innerHTML=`<div class="ch"><span class="cn">${esc(p.name)}</span><span class="ct num">—</span></div><div class="off-note">na pauzi — pozivi su preraspoređeni</div>`;
+    }
+    cards.appendChild(c);
+  });
+}
+
+/* ---------- events ---------- */
+document.addEventListener('input', e=>{
+  const t=e.target, f=t.dataset.f; if(!f) return; const i=+t.dataset.i;
+  if(f==='pname'){ state.people[i].name=t.value; }
+  else if(f==='active'){ state.people[i].active=t.checked; renderPeople(); renderPriority(); }
+  else if(f==='plist'){
+    const nj=+t.value, old=state.people[i].listIdx;
+    const other=state.people.findIndex((p,k)=>k!==i && p.listIdx===nj);
+    if(other>=0) state.people[other].listIdx=old;
+    state.people[i].listIdx=nj;
+    renderPeople(); renderPriority();
+  }
+  else if(f==='prname'){ state.priority[i].name=t.value; renderPeople(); }
+  else if(f==='prcount') state.priority[i].count=Math.max(0,+t.value||0);
+  else if(f==='sccount') state.secondary[i].count=Math.max(0,+t.value||0);
+  else if(f==='exname') state.extra[i].name=t.value;
+  else if(f==='excount') state.extra[i].count=Math.max(0,+t.value||0);
+  renderResults(); save();
+});
+document.addEventListener('click', e=>{
+  const t=e.target, f=t.dataset&&t.dataset.f;
+  if(f==='exdel'){ state.extra.splice(+t.dataset.i,1); renderSecondary(); renderResults(); save(); return; }
+  if(f==='hdel'){
+    const i=+t.dataset.i, h=history[i];
+    if(confirm('Obrisati zapis'+(h&&h.label?' za '+h.label:'')+'?\n\nOvo se NE može vratiti.')){
+      history.splice(i,1); saveHistory(); renderHistory();
+    }
+    return;
+  }
+  const grp = t.closest && t.closest('.hgroup');
+  if(grp){ const k=grp.dataset.k; if(expandedMonths.has(k))expandedMonths.delete(k); else expandedMonths.add(k); renderHistory(); }
+});
+document.getElementById('saveday').addEventListener('click', saveDay);
+document.getElementById('addlist').addEventListener('click', ()=>{
+  state.extra.push({name:'',count:0}); renderSecondary(); save();
+});
+document.getElementById('reset').addEventListener('click', ()=>{
+  if(confirm('Resetovati sve brojeve poziva na 0?')){
+    state.priority.forEach(L=>L.count=0);
+    state.secondary.forEach(s=>s.count=0);
+    state.extra.forEach(e=>e.count=0);
+    save(); renderAll();
+  }
+});
+
+function saveDay(){
+  const r=compute();
+  const d=new Date();
+  const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const label=String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()+'.';
+  const entry={key,label, totals:r.totals.slice(), active:state.people.map(p=>p.active), grand:r.grand};
+  const ix=history.findIndex(h=>h.key===key);
+  if(ix>=0) history[ix]=entry; else history.push(entry);
+  history.sort((a,b)=> a.key<b.key?1:-1);
+  saveHistory(); renderHistory();
+}
+function renderHistory(){
+  const el=document.getElementById('history');
+  if(!history.length){ el.innerHTML='<div class="hempty">Još nema sačuvanih dana. Klikni „Sačuvaj današnju raspodelu".</div>'; return; }
+  const heads=state.people.map((p,i)=>`<th><span class="hname"><span class="hdot" style="background:${PHEX[i]}"></span>${esc(p.name)}</span></th>`).join('');
+  const colCount = 1 + state.people.length + 2;
+  const rowHtml = (h)=>{
+    const hi = history.indexOf(h);
+    const cells=state.people.map((p,i)=>{
+      const act = h.active ? h.active[i] : true;
+      return act ? `<td>${h.totals[i]??0}</td>` : `<td class="hpaus">—</td>`;
+    }).join('');
+    return `<tr><td>${esc(h.label)}</td>${cells}<td>${h.grand}</td><td><button class="hdel" data-f="hdel" data-i="${hi}" title="Obriši">×</button></td></tr>`;
+  };
+
+  const recent = history.slice(0,7);
+  const older  = history.slice(7);
+  const groups=[]; const map={};
+  older.forEach(h=>{
+    const gk=h.key.slice(0,7);
+    let g=map[gk]; if(!g){ g={key:gk, items:[]}; map[gk]=g; groups.push(g); }
+    g.items.push(h);
+  });
+
+  let body = recent.map(rowHtml).join('');
+  groups.forEach(g=>{
+    const [y,m]=g.key.split('-');
+    const name=(MONTHS[+m-1]||'')+' '+y;
+    const open=expandedMonths.has(g.key);
+    const dani=g.items.length+' '+(g.items.length===1?'dan':'dana');
+    body += `<tr class="hgroup" data-f="hgroup" data-k="${g.key}"><td colspan="${colCount}"><span class="hchev">${open?'▾':'▸'}</span>${name} <span class="hcount">${dani}</span></td></tr>`;
+    if(open) body += g.items.map(rowHtml).join('');
+  });
+
+  el.innerHTML=`<table class="htable"><thead><tr><th>Datum</th>${heads}<th>Ukupno</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function renderAll(){ renderPeople(); renderPriority(); renderSecondary(); renderResults(); renderHistory(); }
+renderAll();
+
+/* ----- LOZINKA ZA PRISTUP -----
+   Promeni vrednost ispod u lozinku koju želiš za ekipu. */
+(function(){
+  const PIN = "ekipa2026";
+  const lock=document.getElementById('lock');
+  let ok=false; try{ ok=localStorage.getItem('raspodela_auth')==='1'; }catch(e){}
+  if(ok){ lock.style.display='none'; return; }
+  const inp=document.getElementById('pin'), err=document.getElementById('pinerr');
+  function go(){
+    if(inp.value===PIN){ try{localStorage.setItem('raspodela_auth','1');}catch(e){} lock.style.display='none'; }
+    else { err.textContent='Pogrešna lozinka.'; inp.select(); }
+  }
+  document.getElementById('pinbtn').addEventListener('click', go);
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') go(); });
+  inp.focus();
+})();
+</script>
+</body>
+</html>
