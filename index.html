@@ -288,18 +288,51 @@ const DEFAULT = {
   extra:[]
 };
 
+// ===== ZAJEDNIČKA BAZA (Google Sheet) =====
+// Ovde ide Web app URL iz Google Apps Script (završava se na /exec):
+const API = "https://script.google.com/macros/s/AKfycbzbgfOoY-XjOFNoXO5qf2A9Us4eeJncfvqJKrgZLY8CocKtL5QndNQ6jYi867HQtaPA/exec";
+
 let state = load();
 function load(){
   try{ const s=localStorage.getItem('raspodela_v4'); if(s) return JSON.parse(s); }catch(e){}
   return clone(DEFAULT);
 }
 function clone(o){ return JSON.parse(JSON.stringify(o)); }
-function save(){ try{ localStorage.setItem('raspodela_v4', JSON.stringify(state)); }catch(e){} }
+function save(){ try{ localStorage.setItem('raspodela_v4', JSON.stringify(state)); }catch(e){} pushToServer(); }
 function ownerOf(j){ return state.people.findIndex(p=>p.listIdx===j); }
 
 let history = loadHistory();
 function loadHistory(){ try{ const s=localStorage.getItem('raspodela_history_v1'); if(s) return JSON.parse(s); }catch(e){} return []; }
-function saveHistory(){ try{ localStorage.setItem('raspodela_history_v1', JSON.stringify(history)); }catch(e){} }
+function saveHistory(){ try{ localStorage.setItem('raspodela_history_v1', JSON.stringify(history)); }catch(e){} pushToServer(); }
+
+// push current state + history to the shared base (debounced, no-cors so the write always goes through)
+let _pushTimer=null;
+function pushToServer(){
+  if(!API) return;
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(()=>{
+    try{ fetch(API,{method:'POST', mode:'no-cors', body:JSON.stringify({state:state, history:history})}); }catch(e){}
+  }, 600);
+}
+// pull latest from the shared base on open (JSONP — avoids CORS entirely)
+function syncFromServer(){
+  if(!API) return;
+  const cb='__sync'+Date.now();
+  window[cb]=function(data){
+    try{
+      let changed=false;
+      if(data && data.state){ state=data.state; try{localStorage.setItem('raspodela_v4',JSON.stringify(state));}catch(e){} changed=true; }
+      if(data && Array.isArray(data.history)){ history=data.history; try{localStorage.setItem('raspodela_history_v1',JSON.stringify(history));}catch(e){} changed=true; }
+      if(changed) renderAll(); else pushToServer();
+    }catch(e){}
+    delete window[cb]; if(sc&&sc.remove) sc.remove();
+  };
+  const sc=document.createElement('script');
+  sc.src=API+'?callback='+cb+'&t='+Date.now();
+  sc.onerror=function(){ delete window[cb]; };
+  document.body.appendChild(sc);
+}
+
 const MONTHS=['JANUAR','FEBRUAR','MART','APRIL','MAJ','JUN','JUL','AVGUST','SEPTEMBAR','OKTOBAR','NOVEMBAR','DECEMBAR'];
 const expandedMonths = new Set();
 
@@ -621,6 +654,7 @@ function renderHistory(){
 
 function renderAll(){ renderPeople(); renderPriority(); renderSecondary(); renderResults(); renderHistory(); }
 renderAll();
+syncFromServer();
 
 /* ----- LOZINKA ZA PRISTUP -----
    Promeni vrednost ispod u lozinku koju želiš za ekipu. */
