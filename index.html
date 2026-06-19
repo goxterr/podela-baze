@@ -138,13 +138,15 @@
   .hdel:hover{background:#fee2e2; color:#dc2626}
   .hempty{color:var(--muted); font-size:13px; padding:6px 0}
   .histchart-wrap{padding:4px 20px 14px}
+  .hc-title{font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:6px 0 10px}
   .period{display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap}
   .period button{font:inherit; font-size:12px; font-weight:600; color:#475569; background:#fff; border:1px solid var(--line); padding:6px 11px; border-radius:8px; cursor:pointer; transition:.12s}
   .period button:hover{border-color:#9fb6ac}
   .period button.on{background:#3f6964; color:#fff; border-color:#3f6964}
   .hc-bars{display:flex; align-items:flex-end; gap:2px; height:110px}
-  .hc-bar{flex:1 1 0; min-width:1px; max-width:46px; margin:0 auto; background:linear-gradient(180deg,#62a596,#3f6964); border-radius:3px 3px 0 0; min-height:3px}
+  .hc-bar{flex:1 1 0; min-width:0; max-width:46px; margin:0 auto; background:linear-gradient(180deg,#62a596,#3f6964); border-radius:3px 3px 0 0; min-height:3px}
   .hc-bar:hover{filter:brightness(1.12)}
+  .hc-bar.empty{height:5px; background:#dfe3e8; border-radius:2px; align-self:flex-end}
   .hc-axis{display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:7px}
   .hc-axis .mid{font-weight:600}
   .hc-empty{color:var(--muted); font-size:13px; padding:24px 0; text-align:center}
@@ -280,7 +282,9 @@
             <button class="btn primary" id="saveday">Sačuvaj današnju raspodelu</button>
           </div>
         </div>
+        <div class="htable-wrap" id="history"></div>
         <div class="histchart-wrap">
+          <div class="hc-title">Ukupno poziva po danu</div>
           <div class="period">
             <button data-f="hperiod" data-p="7">7 dana</button>
             <button data-f="hperiod" data-p="30">30 dana</button>
@@ -289,7 +293,6 @@
           </div>
           <div id="histchart" class="histchart"></div>
         </div>
-        <div class="htable-wrap" id="history"></div>
       </div>
     </div>
   </div>
@@ -386,23 +389,29 @@ const MONTHS=['JANUAR','FEBRUAR','MART','APRIL','MAJ','JUN','JUL','AVGUST','SEPT
 const expandedMonths = new Set();
 let chartPeriod = 30;
 function fmtKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dLabel(d){ return String(d.getDate()).padStart(2,'0')+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+d.getFullYear()+'.'; }
 function renderHistChart(){
   const wrap=document.getElementById('histchart'); if(!wrap) return;
   document.querySelectorAll('.period button').forEach(b=> b.classList.toggle('on', +b.dataset.p===chartPeriod));
   const today=new Date(); today.setHours(0,0,0,0);
-  const cut=new Date(today); cut.setDate(cut.getDate()-(chartPeriod-1));
-  const cutKey=fmtKey(cut);
-  const items=history.filter(h=>h.key>=cutKey).slice().sort((a,b)=> a.key<b.key?-1:1);
-  if(!items.length){ wrap.innerHTML='<div class="hc-empty">Nema podataka za izabrani period.</div>'; return; }
-  const vals=items.map(h=>h.grand);
-  const max=Math.max(...vals), min=Math.min(...vals);
-  const span=Math.max(max-min,1);
-  const bars=items.map(h=>{
-    const ht = max===min ? 100 : Math.round(18 + (h.grand-min)/span*82); // 18–100% so razlike se vide
-    return `<div class="hc-bar" style="height:${ht}%" title="${esc(h.label)} — ${h.grand}"></div>`;
+  const map={}; history.forEach(h=> map[h.key]=h);
+  const days=[];
+  for(let i=chartPeriod-1;i>=0;i--){ const d=new Date(today); d.setDate(d.getDate()-i); days.push(d); }
+  const present=days.map(d=>map[fmtKey(d)]).filter(Boolean);
+  if(!present.length){ wrap.innerHTML='<div class="hc-empty">Nema podataka za izabrani period.</div>'; return; }
+  const vals=present.map(h=>h.grand);
+  const max=Math.max(...vals), min=Math.min(...vals), span=Math.max(max-min,1);
+  const gap = chartPeriod<=31 ? 2 : (chartPeriod<=90 ? 1 : 0);
+  const bars=days.map(d=>{
+    const h=map[fmtKey(d)];
+    if(h){
+      const ht = max===min ? 100 : Math.round(18 + (h.grand-min)/span*82);
+      return `<div class="hc-bar" style="height:${ht}%" title="${esc(dLabel(d))} — ${h.grand}"></div>`;
+    }
+    return `<div class="hc-bar empty" title="${esc(dLabel(d))} — nema podataka"></div>`;
   }).join('');
-  wrap.innerHTML=`<div class="hc-bars">${bars}</div>`+
-    `<div class="hc-axis"><span>${esc(items[0].label)}</span><span class="mid">min ${min} · maks ${max}</span><span>${esc(items[items.length-1].label)}</span></div>`;
+  wrap.innerHTML=`<div class="hc-bars" style="gap:${gap}px">${bars}</div>`+
+    `<div class="hc-axis"><span>${esc(dLabel(days[0]))}</span><span class="mid">min ${min} · maks ${max}</span><span>${esc(dLabel(days[days.length-1]))}</span></div>`;
 }
 
 /* ---------- engine ---------- */
@@ -698,8 +707,8 @@ function renderHistory(){
     return `<tr><td class="hdate" data-label="Datum">${esc(h.label)}</td>${cells}<td data-label="Ukupno">${h.grand}</td><td class="hdelcell"><button class="hdel" data-f="hdel" data-i="${hi}" title="Obriši">×</button></td></tr>`;
   };
 
-  const recent = history.slice(0,7);
-  const older  = history.slice(7);
+  const recent = history.slice(0,3);
+  const older  = history.slice(3);
   const groups=[]; const map={};
   older.forEach(h=>{
     const gk=h.key.slice(0,7);
